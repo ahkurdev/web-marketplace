@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: Web Marketplace API
+  description: Official REST API Contract for Web Marketplace
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /auth/register:
+    post:
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error
+        '409':
+          description: Email already registered
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful, returns token
+        '401':
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile details
+        '401':
+          description: Unauthorized
+
+  /products:
+    get:
+      summary: List all products with filtering and pagination
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Paginated product list
+    post:
+      summary: Create product (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, price, stock, category]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                stock:
+                  type: integer
+                category:
+                  type: string
+                imageUrl:
+                  type: string
+      responses:
+        '201':
+          description: Product created
+        '403':
+          description: Forbidden (Admin only)
+
+  /products/{id}:
+    get:
+      summary: Get product details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product details
+        '404':
+          description: Product not found
+
+  /cart:
+    get:
+      summary: Get user shopping cart
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cart items and total
+        '401':
+          description: Unauthorized
+    delete:
+      summary: Clear entire cart
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cart emptied
+
+  /cart/items:
+    post:
+      summary: Add item to cart
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Item added/updated in cart
+        '400':
+          description: Insufficient stock or invalid quantity
+
+  /cart/items/{id}:
+    put:
+      summary: Update cart item quantity
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Item updated
+    delete:
+      summary: Remove item from cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item removed
+
+  /checkout:
+    post:
+      summary: Convert cart into order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shippingAddress]
+              properties:
+                shippingAddress:
+                  type: string
+      responses:
+        '201':
+          description: Order created successfully
+        '400':
+          description: Cart empty or insufficient stock
+        '409':
+          description: Idempotency key conflict
+
+  /orders:
+    get:
+      summary: Get user orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of orders
+
+  /orders/{id}:
+    get:
+      summary: Get order details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+        '404':
+          description: Order not found
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
